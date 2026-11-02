@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: truck-weather-router
+    runtime: python
+    plan: free
+    buildCommand: |
+      cd frontend && npm ci && npm run build && cd ..
+      pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn config.wsgi --timeout 120 --workers 2 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: NODE_VERSION
+        value: 22.13.1
