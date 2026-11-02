@@ -34,6 +34,18 @@ export default function CheckpointTable({ route, interval }) {
           </tbody>
         </table>
       </div>
+      {route.stops.length > 0 && (
+        <>
+          <h3 className="stops-title">Required driver stops (US Hours of Service)</h3>
+          <ul className="stops">
+            {route.stops.map((s) => (
+              <li key={s.start}>
+                <b>{s.kind}</b> near mile {s.mile.toFixed(0)}: {formatTime(s.start)} to {formatTime(s.end)}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   )
 }

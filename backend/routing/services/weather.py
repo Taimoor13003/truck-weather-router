@@ -27,10 +27,14 @@ class Forecast:
         self.start, self.wind, self.rain, self.snow = start, wind, rain, snow
 
     def at(self, when):
-        """(wind mph, rain in/hr, snow in/hr) for the hour nearest `when`."""
-        idx = round((when - self.start).total_seconds() / 3600)
-        idx = min(max(idx, 0), len(self.wind) - 1)
-        return self.wind[idx], self.rain[idx], self.snow[idx]
+        """(wind mph, rain in/hr, snow in/hr) at `when`, linearly interpolated between forecast hours."""
+        pos = (when - self.start).total_seconds() / 3600
+        pos = min(max(pos, 0.0), len(self.wind) - 1.0)
+        lo = int(pos)
+        hi = min(lo + 1, len(self.wind) - 1)
+        t = pos - lo
+        mix = lambda series: series[lo] + (series[hi] - series[lo]) * t
+        return mix(self.wind), mix(self.rain), mix(self.snow)
 
 
 def _parse(entry):

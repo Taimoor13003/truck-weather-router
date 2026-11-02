@@ -8,7 +8,7 @@ const LEVEL_RGB = [
   [91, 26, 107],
 ]
 const MIN_RADIUS_PX = 14
-const MAX_RADIUS_PX = 110
+const MAX_RADIUS_PX = 70
 
 /**
  * Canvas heatmap where colour means risk level (not point density).
@@ -55,7 +55,7 @@ export default class HeatLayer extends L.Layer {
 
   _radiusPx(lat) {
     const metersPerPx = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** this._map.getZoom())
-    return Math.min(MAX_RADIUS_PX, Math.max(MIN_RADIUS_PX, (this._spacingM * 0.75) / metersPerPx))
+    return Math.min(MAX_RADIUS_PX, Math.max(MIN_RADIUS_PX, (this._spacingM * 0.65) / metersPerPx))
   }
 
   _draw() {

@@ -1,4 +1,5 @@
 """Small geometry helpers for polylines expressed as (lat, lon) pairs."""
+from bisect import bisect_right
 from math import asin, cos, radians, sin, sqrt
 
 EARTH_RADIUS_MI = 3958.8
@@ -37,6 +38,17 @@ def point_at(points, cumulative, mile):
         points[lo][0] + (points[hi][0] - points[lo][0]) * t,
         points[lo][1] + (points[hi][1] - points[lo][1]) * t,
     )
+
+
+def interpolate(xs, ys, x):
+    """Linear interpolation of y at x, where xs is ascending."""
+    if x <= xs[0]:
+        return ys[0]
+    if x >= xs[-1]:
+        return ys[-1]
+    i = bisect_right(xs, x)
+    span = xs[i] - xs[i - 1] or 1e-9
+    return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / span
 
 
 def downsample(points, max_points):

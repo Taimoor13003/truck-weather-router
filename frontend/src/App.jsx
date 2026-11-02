@@ -29,7 +29,7 @@ export default function App() {
       setSelectedId(result.recommended_id)
       setHour(0)
     } catch (err) {
-      if (err.name !== 'AbortError') setError(err.message)
+      if (err.name !== 'AbortError') setError(err.message || 'Something went wrong. Please try again.')
     } finally {
       if (request.current === controller) setLoading(false)
     }
@@ -46,7 +46,7 @@ export default function App() {
         </header>
         <PlanForm loading={loading} onSubmit={submit} />
         {error && <div className="error" role="alert">{error}</div>}
-        {loading && <div className="card loading">Finding routes and checking the forecast at each checkpoint. This takes 15–25 seconds.</div>}
+        {loading && <div className="card loading">Finding routes and checking the forecast at each checkpoint. This takes about 10 seconds.</div>}
         {plan && !loading && (
           <>
             <RouteCards plan={plan} selectedId={selectedId} onSelect={setSelectedId} />

@@ -11,7 +11,15 @@ const endpointIcon = (text, color) =>
     iconAnchor: [13, 13],
   })
 
-const popupHtml = (c, hour) => `
+const stopIcon = (text, rest) =>
+  L.divIcon({
+    className: '',
+    html: `<div class="stop-marker ${rest ? 'rest' : ''}">${text}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  })
+
+const popupHtml =(c, hour) => `
   <div class="popup">
     <b>Mile ${c.mile.toFixed(0)}</b> · ETA ${formatTime(c.eta)}<br/>
     Wind ${c.wind_mph.toFixed(0)} mph · Rain ${c.rain_in_hr.toFixed(2)} in/hr · Snow ${c.snow_in_hr.toFixed(2)} in/hr<br/>
@@ -73,6 +81,14 @@ export default function MapView({ plan, selectedId, hour, showHeat, onSelect }) 
         })
         if (selected) marker.bindPopup(() => popupHtml(c, hourRef.current))
         group.addLayer(marker)
+      }
+      if (selected) {
+        for (const s of route.stops) {
+          const rest = s.kind === '10-h rest'
+          const stop = L.marker([s.lat, s.lon], { icon: stopIcon(rest ? 'R' : 'B', rest), zIndexOffset: 500 })
+          stop.bindTooltip(`${s.kind} · mile ${s.mile.toFixed(0)} · ${formatTime(s.start)} to ${formatTime(s.end)}`)
+          group.addLayer(stop)
+        }
       }
     }
     const first = plan.routes[0].geometry

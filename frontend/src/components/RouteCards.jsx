@@ -17,6 +17,15 @@ function RiskBar({ checkpoints }) {
   )
 }
 
+function describeStops(stops) {
+  const rests = stops.filter((s) => s.kind === '10-h rest').length
+  const breaks = stops.length - rests
+  const parts = []
+  if (breaks) parts.push(`${breaks} × 30-min break`)
+  if (rests) parts.push(`${rests} × 10-h rest`)
+  return parts.join(' and ')
+}
+
 export default function RouteCards({ plan, selectedId, onSelect }) {
   return (
     <section className="routes" aria-label="Route options">
@@ -42,9 +51,14 @@ export default function RouteCards({ plan, selectedId, onSelect }) {
             </div>
             <div className="route-stats">
               <span>{route.distance_mi.toFixed(0)} mi</span>
-              <span>{formatDuration(route.duration_s)}</span>
+              <span title="Driving time at truck speed">drive {formatDuration(route.drive_s)}</span>
               <span>arrive {formatTime(route.arrival)}</span>
             </div>
+            {route.stops.length > 0 && (
+              <div className="route-note">
+                {formatDuration(route.duration_s)} door to door, including {describeStops(route.stops)}
+              </div>
+            )}
             <RiskBar checkpoints={route.checkpoints} />
             <div className="route-risk">
               <span>Worst: <b style={{ color: LEVEL_COLORS[s.max_level] }}>{LEVELS[s.max_level]}</b></span>

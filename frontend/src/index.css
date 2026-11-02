@@ -93,6 +93,11 @@ th { position: sticky; top: 0; background: var(--panel); color: var(--muted); fo
 .map-hint { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000; color: var(--muted); }
 
 .endpoint { width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 0.8rem; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.4); }
+.stop-marker { width: 20px; height: 20px; border-radius: 4px; background: #374151; color: #fff; font-size: 0.7rem; font-weight: 700; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.4); }
+.stop-marker.rest { background: #1e3a8a; }
+.route-note { font-size: 0.78rem; color: var(--muted); }
+.stops-title { margin-top: 12px; }
+.stops { margin: 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.6; }
 .popup { font-size: 0.82rem; line-height: 1.5; color: #111827; }
 .popup .muted { color: #5b6575; margin-top: 4px; }
 

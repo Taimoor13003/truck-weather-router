@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from django.test import SimpleTestCase
 
-from .services import planner, risk
+from .services import hos, osrm, planner, risk, weather
 from .services.geo import cumulative_miles, point_at
 
 
@@ -79,6 +79,52 @@ class PlannerTests(SimpleTestCase):
         a = self._route("A", 5000, 0, 0, 0.5)
         b = self._route("B", 4000, 0, 0, 0.5)
         self.assertEqual(min([a, b], key=planner._rank_key)["name"], "B")
+
+
+class HoursOfServiceTests(SimpleTestCase):
+    H = 3600
+
+    def test_short_trip_has_no_stops(self):
+        self.assertEqual(hos.elapsed_s(5 * self.H), 5 * self.H)
+        self.assertEqual(hos.stops(5 * self.H), [])
+
+    def test_break_after_eight_hours_of_driving(self):
+        self.assertEqual(hos.elapsed_s(8 * self.H), 8 * self.H)
+        self.assertEqual(hos.elapsed_s(9 * self.H), 9.5 * self.H)
+
+    def test_rest_after_eleven_hours_of_driving(self):
+        self.assertEqual(hos.elapsed_s(11 * self.H), 11.5 * self.H)
+        # 11 h + 30 min break + 10 h rest, then 1 h more driving.
+        self.assertEqual(hos.elapsed_s(12 * self.H), 22.5 * self.H)
+
+    def test_stop_list_for_two_day_trip(self):
+        kinds = [(drive / self.H, kind) for drive, kind, _ in hos.stops(20 * self.H)]
+        self.assertEqual(kinds, [(8, "30-min break"), (11, "10-h rest"), (19, "30-min break")])
+
+
+class TruckSpeedTests(SimpleTestCase):
+    def test_segments_are_capped_at_truck_speed(self):
+        # Two 1 km segments: one at 120 km/h (too fast for a truck), one at 36 km/h.
+        route = {
+            "geometry": {"coordinates": [[0, 0], [0.009, 0], [0.018, 0]]},
+            "legs": [{"annotation": {"distance": [1000, 1000], "duration": [30, 100]}}],
+            "duration": 130,
+        }
+        parsed = osrm.parse_route(route)
+        capped = 1000 / osrm.TRUCK_MAX_MPS
+        self.assertAlmostEqual(parsed["drive_s"], capped + 100, places=3)
+        self.assertAlmostEqual(parsed["distance_mi"], 2000 / osrm.METERS_PER_MILE, places=6)
+
+
+class ForecastTests(SimpleTestCase):
+    def test_values_are_interpolated_between_hours(self):
+        start = datetime(2026, 11, 2, tzinfo=timezone.utc)
+        forecast = weather.Forecast(start, [10, 30], [0.0, 0.2], [0.0, 1.0])
+        wind, rain, snow = forecast.at(start + timedelta(minutes=30))
+        self.assertAlmostEqual(wind, 20)
+        self.assertAlmostEqual(rain, 0.1)
+        self.assertAlmostEqual(snow, 0.5)
+        self.assertEqual(forecast.at(start + timedelta(days=3)), (30, 0.2, 1.0))
 
 
 class GeoTests(SimpleTestCase):

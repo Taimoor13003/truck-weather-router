@@ -1,8 +1,9 @@
 """Turn routes + forecasts into checkpoints, risk summaries and a recommendation."""
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
-from . import geocode, osrm, risk, weather
-from .geo import cumulative_miles, downsample, point_at
+from . import geocode, hos, osrm, risk, weather
+from .geo import downsample, interpolate, point_at
 
 INTERVALS = (10, 25, 50)
 HEAT_HOURS = 48
@@ -37,18 +38,39 @@ def checkpoint_miles(total_mi, interval_mi):
 def build_checkpoints(route, interval_mi, departure):
     """Evenly spaced points along the route, each with the truck's estimated arrival time.
 
-    Time is assumed to progress in proportion to distance (constant average speed taken from
-    the routing API's duration), which is what lets us ask 'what will the weather be when the
-    truck gets here?'.
+    The ETA comes from the routing API's per-segment travel times (slowed to truck speed, see
+    osrm.py), so slow city stretches and fast interstates are timed correctly, plus the driver's
+    required breaks and rests (hos.py). That is what lets us ask "what will the weather be when
+    the truck actually gets here?".
     """
-    points = route["points"]
-    cumulative = cumulative_miles(points)
-    total = cumulative[-1]
+    points, cum_mi, cum_s = route["points"], route["cum_mi"], route["cum_s"]
     out = []
-    for mile in checkpoint_miles(total, interval_mi):
-        lat, lon = point_at(points, cumulative, mile)
-        eta = departure + timedelta(seconds=route["duration_s"] * (mile / total))
+    for mile in checkpoint_miles(cum_mi[-1], interval_mi):
+        lat, lon = point_at(points, cum_mi, mile)
+        drive = interpolate(cum_mi, cum_s, mile)
+        eta = departure + timedelta(seconds=hos.elapsed_s(drive))
         out.append({"mile": round(mile, 1), "lat": lat, "lon": lon, "eta": eta})
+    return out
+
+
+def build_stops(route, departure):
+    """Where and when the driver must take a break or a rest on this route."""
+    out = []
+    for drive, kind, length in hos.stops(route["drive_s"]):
+        mile = interpolate(route["cum_s"], route["cum_mi"], drive)
+        lat, lon = point_at(route["points"], route["cum_mi"], mile)
+        # Arrival at the stop: everything before it, but not the stop itself.
+        start = departure + timedelta(seconds=hos.elapsed_s(drive))
+        out.append(
+            {
+                "kind": kind,
+                "mile": round(mile, 1),
+                "lat": round(lat, 5),
+                "lon": round(lon, 5),
+                "start": start.isoformat(),
+                "end": (start + timedelta(seconds=length)).isoformat(),
+            }
+        )
     return out
 
 
@@ -98,8 +120,8 @@ def plan_trip(origin_text, dest_text, departure, weight_lb, interval_mi, now=Non
     now = now or datetime.now(timezone.utc)
     validate(departure, weight_lb, interval_mi, now)
 
-    origin = geocode.geocode(origin_text)
-    dest = geocode.geocode(dest_text)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        origin, dest = pool.map(geocode.geocode, (origin_text, dest_text))
     raw_routes = osrm.fetch_routes(origin, dest)
 
     for route in raw_routes:
@@ -134,13 +156,16 @@ def plan_trip(origin_text, dest_text, departure, weight_lb, interval_mi, now=Non
                     "heat": heat,
                 }
             )
+        total_s = hos.elapsed_s(route["drive_s"])
         routes.append(
             {
                 "id": f"route-{i + 1}",
                 "name": ROUTE_NAMES[i],
                 "distance_mi": round(route["distance_mi"], 1),
-                "duration_s": round(route["duration_s"]),
-                "arrival": (departure + timedelta(seconds=route["duration_s"])).isoformat(),
+                "drive_s": round(route["drive_s"]),
+                "duration_s": round(total_s),
+                "arrival": (departure + timedelta(seconds=total_s)).isoformat(),
+                "stops": build_stops(route, departure),
                 "geometry": [[round(lat, 5), round(lon, 5)] for lat, lon in downsample(route["points"], GEOMETRY_POINTS)],
                 "checkpoints": checkpoints,
                 "summary": _summarize(checkpoints),
