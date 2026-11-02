@@ -6,6 +6,7 @@
 The 14-hour on-duty window and the 60/70-hour weekly limits are not modelled: a single trip
 planned from a fresh start is governed by the two rules above.
 """
+
 import math
 
 DRIVE_LIMIT_S = 11 * 3600

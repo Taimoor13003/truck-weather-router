@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import { LEVEL_COLORS, formatTime } from '../format'
 
-export default function CheckpointTable({ route, interval }) {
+export default memo(function CheckpointTable({ route, interval, timeZone }) {
   return (
     <section className="card table-card">
       <h3>
@@ -22,7 +23,7 @@ export default function CheckpointTable({ route, interval }) {
             {route.checkpoints.map((c) => (
               <tr key={c.mile} title={c.reasons.join('\n')}>
                 <td>{c.mile.toFixed(0)}</td>
-                <td>{formatTime(c.eta)}</td>
+                <td>{formatTime(c.eta, timeZone)}</td>
                 <td>{c.wind_mph.toFixed(0)}</td>
                 <td>{c.rain_in_hr.toFixed(2)}</td>
                 <td>{c.snow_in_hr.toFixed(2)}</td>
@@ -40,7 +41,7 @@ export default function CheckpointTable({ route, interval }) {
           <ul className="stops">
             {route.stops.map((s) => (
               <li key={s.start}>
-                <b>{s.kind}</b> near mile {s.mile.toFixed(0)}: {formatTime(s.start)} to {formatTime(s.end)}
+                <b>{s.kind}</b> near mile {s.mile.toFixed(0)}: {formatTime(s.start, timeZone)} to {formatTime(s.end, timeZone)}
               </li>
             ))}
           </ul>
@@ -48,4 +49,4 @@ export default function CheckpointTable({ route, interval }) {
       )}
     </section>
   )
-}
+})

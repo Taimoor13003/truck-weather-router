@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { LEVEL_COLORS, LEVELS, ROUTE_COLORS, formatDuration, formatTime } from '../format'
 
 /** Horizontal bar: the route's length split by the risk level of each stretch. */
@@ -26,9 +27,13 @@ function describeStops(stops) {
   return parts.join(' and ')
 }
 
-export default function RouteCards({ plan, selectedId, onSelect }) {
+export default memo(function RouteCards({ plan, selectedId, onSelect }) {
   return (
     <section className="routes" aria-label="Route options">
+      <p className="trip-line">
+        {plan.origin.label} → {plan.destination.label} · leaving {formatTime(plan.departure, plan.timezone)} ·{' '}
+        {plan.weight_lb.toLocaleString('en-US')} lb · weather from {plan.weather_sources.join(' + ')}
+      </p>
       <p className="recommendation">
         <strong>Recommended:</strong> {plan.recommendation}
       </p>
@@ -52,7 +57,7 @@ export default function RouteCards({ plan, selectedId, onSelect }) {
             <div className="route-stats">
               <span>{route.distance_mi.toFixed(0)} mi</span>
               <span title="Driving time at truck speed">drive {formatDuration(route.drive_s)}</span>
-              <span>arrive {formatTime(route.arrival)}</span>
+              <span>arrive {formatTime(route.arrival, plan.timezone)}</span>
             </div>
             {route.stops.length > 0 && (
               <div className="route-note">
@@ -71,4 +76,4 @@ export default function RouteCards({ plan, selectedId, onSelect }) {
       })}
     </section>
   )
-}
+})

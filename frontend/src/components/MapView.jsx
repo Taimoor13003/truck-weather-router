@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import HeatLayer from '../HeatLayer'
 import L from '../leaflet'
-import { LEVEL_COLORS, LEVELS, ROUTE_COLORS, formatTime } from '../format'
+import { LEVEL_COLORS, LEVELS, ROUTE_COLORS, formatOffset, formatTime } from '../format'
 
 const endpointIcon = (text, color) =>
   L.divIcon({
@@ -19,14 +19,17 @@ const stopIcon = (text, rest) =>
     iconAnchor: [10, 10],
   })
 
-const popupHtml =(c, hour) => `
+const popupHtml = (c, hour, timeZone) => {
+  const nearest = Math.round(hour)
+  return `
   <div class="popup">
-    <b>Mile ${c.mile.toFixed(0)}</b> · ETA ${formatTime(c.eta)}<br/>
+    <b>Mile ${c.mile.toFixed(0)}</b> · ETA ${formatTime(c.eta, timeZone)}<br/>
     Wind ${c.wind_mph.toFixed(0)} mph · Rain ${c.rain_in_hr.toFixed(2)} in/hr · Snow ${c.snow_in_hr.toFixed(2)} in/hr<br/>
     <span class="pill" style="background:${LEVEL_COLORS[c.level]}">${c.risk}</span>
     ${c.reasons.map((r) => `<div>${r}</div>`).join('')}
-    <div class="muted">Forecast at +${hour} h: ${LEVELS[c.heat[hour]]}</div>
+    <div class="muted">Heatmap at ${formatOffset(nearest)}: ${LEVELS[c.heat[nearest]]}</div>
   </div>`
+}
 
 export default function MapView({ plan, selectedId, hour, showHeat, onSelect }) {
   const containerRef = useRef(null)
@@ -79,14 +82,15 @@ export default function MapView({ plan, selectedId, hour, showHeat, onSelect }) 
           fillColor: LEVEL_COLORS[c.level],
           fillOpacity: selected ? 1 : 0.6,
         })
-        if (selected) marker.bindPopup(() => popupHtml(c, hourRef.current))
+        if (selected) marker.bindPopup(() => popupHtml(c, hourRef.current, plan.timezone))
         group.addLayer(marker)
       }
       if (selected) {
         for (const s of route.stops) {
           const rest = s.kind === '10-h rest'
           const stop = L.marker([s.lat, s.lon], { icon: stopIcon(rest ? 'R' : 'B', rest), zIndexOffset: 500 })
-          stop.bindTooltip(`${s.kind} · mile ${s.mile.toFixed(0)} · ${formatTime(s.start)} to ${formatTime(s.end)}`)
+          const when = `${formatTime(s.start, plan.timezone)} to ${formatTime(s.end, plan.timezone)}`
+          stop.bindTooltip(`${s.kind} · mile ${s.mile.toFixed(0)} · ${when}`)
           group.addLayer(stop)
         }
       }
@@ -109,9 +113,15 @@ export default function MapView({ plan, selectedId, hour, showHeat, onSelect }) 
   }, [plan, showHeat])
 
   // Slider: recolour every checkpoint of every route with the forecast `hour` hours after departure.
+  // `hour` can be fractional (the slider moves in 15-minute steps); colours blend between whole hours.
   useEffect(() => {
     if (!plan || !heatLayer.current) return
-    heatLayer.current.setPoints(plan.routes.flatMap((r) => r.checkpoints.map((c) => [c.lat, c.lon, c.heat[hour]])))
+    const h0 = Math.floor(hour)
+    const h1 = Math.min(h0 + 1, plan.routes[0].checkpoints[0].heat.length - 1)
+    const t = hour - h0
+    heatLayer.current.setPoints(
+      plan.routes.flatMap((r) => r.checkpoints.map((c) => [c.lat, c.lon, c.heat[h0], c.heat[h1], t])),
+    )
   }, [plan, showHeat, hour])
 
   // Zoom to the new trip once per plan, not on every slider tick.

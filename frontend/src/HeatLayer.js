@@ -7,6 +7,7 @@ const LEVEL_RGB = [
   [217, 54, 54],
   [91, 26, 107],
 ]
+const mixRgb = (from, to, t) => from.map((c, i) => Math.round(c + (to[i] - c) * t))
 const MIN_RADIUS_PX = 14
 const MAX_RADIUS_PX = 70
 
@@ -39,9 +40,14 @@ export default class HeatLayer extends L.Layer {
     this._canvas.remove()
   }
 
-  /** points: [[lat, lon, level], ...] */
+  /**
+   * points: [[lat, lon, levelNow, levelNext, t], ...]: the colour is blended from levelNow to
+   * levelNext by t (0..1), so the map changes smoothly as the slider moves between forecast hours.
+   */
   setPoints(points) {
-    this._points = [...points].sort((a, b) => a[2] - b[2])
+    this._points = points
+      .map(([lat, lon, a, b, t]) => ({ lat, lon, severity: a + (b - a) * t, rgb: mixRgb(LEVEL_RGB[a], LEVEL_RGB[b], t) }))
+      .sort((p, q) => p.severity - q.severity)
     if (this._map) this._draw()
   }
 
@@ -60,11 +66,13 @@ export default class HeatLayer extends L.Layer {
 
   _draw() {
     const ctx = this._canvas.getContext('2d')
-    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height)
-    for (const [lat, lon, level] of this._points) {
+    const { width, height } = this._canvas
+    ctx.clearRect(0, 0, width, height)
+    for (const { lat, lon, rgb } of this._points) {
       const { x, y } = this._map.latLngToContainerPoint([lat, lon])
       const r = this._radiusPx(lat)
-      const [red, green, blue] = LEVEL_RGB[level]
+      if (x < -r || y < -r || x > width + r || y > height + r) continue // off screen
+      const [red, green, blue] = rgb
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, r)
       gradient.addColorStop(0, `rgba(${red},${green},${blue},0.8)`)
       gradient.addColorStop(0.55, `rgba(${red},${green},${blue},0.45)`)

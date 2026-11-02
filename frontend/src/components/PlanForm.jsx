@@ -53,7 +53,7 @@ export default function PlanForm({ loading, onSubmit }) {
     onSubmit({
       origin,
       destination,
-      departure: new Date(departure).toISOString(),
+      departure, // local clock time at the origin; the server resolves the origin's time zone
       weight_lb: Number(weight),
       interval_mi: Number(interval),
     })
@@ -65,7 +65,7 @@ export default function PlanForm({ loading, onSubmit }) {
       <PlaceInput id="destination" label="Destination" value={destination} onChange={setDestination} placeholder="City, state" />
       <div className="row">
         <label className="field" htmlFor="departure">
-          <span>Departure</span>
+          <span>Departure (origin local time)</span>
           <input id="departure" type="datetime-local" value={departure} onChange={(e) => setDeparture(e.target.value)} required />
         </label>
         <label className="field" htmlFor="weight">

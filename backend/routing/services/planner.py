@@ -1,6 +1,8 @@
 """Turn routes + forecasts into checkpoints, risk summaries and a recommendation."""
+
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from . import geocode, hos, osrm, risk, weather
 from .geo import downsample, interpolate, point_at
@@ -9,7 +11,7 @@ INTERVALS = (10, 25, 50)
 HEAT_HOURS = 48
 MAX_DEPARTURE_AHEAD = timedelta(days=5)
 MAX_DEPARTURE_BEHIND = timedelta(hours=12)
-GEOMETRY_POINTS = 700
+MAP_POINTS = 700  # route line resolution sent to the browser
 ROUTE_NAMES = ["Route A", "Route B", "Route C"]
 
 
@@ -17,12 +19,17 @@ class PlanError(ValueError):
     pass
 
 
-def validate(departure, weight_lb, interval_mi, now):
+def validate_inputs(weight_lb, interval_mi):
     if interval_mi not in INTERVALS:
         raise PlanError(f"Checkpoint interval must be one of {', '.join(map(str, INTERVALS))} miles.")
     if not 0 < weight_lb <= 200_000:
         raise PlanError("Load weight must be between 1 and 200,000 lb.")
-    if departure < now - MAX_DEPARTURE_BEHIND or departure > now + MAX_DEPARTURE_AHEAD:
+
+
+def validate_departure(departure, now):
+    if departure < now - MAX_DEPARTURE_BEHIND:
+        raise PlanError("Departure is in the past. Pick a time from now up to 5 days ahead.")
+    if departure > now + MAX_DEPARTURE_AHEAD:
         raise PlanError("Departure must be within the next 5 days (weather forecasts do not reach further).")
 
 
@@ -100,7 +107,10 @@ def _rank_key(route):
 def _recommendation(routes, best):
     fastest = min(routes, key=lambda r: r["duration_s"])
     if all(r["blocked"] for r in routes):
-        return f"Every route crosses a No Travel zone at the forecast time. {best['name']} is the least bad; consider delaying departure."
+        return (
+            f"Every route crosses a No Travel zone at the forecast time. "
+            f"{best['name']} is the least bad; consider delaying departure."
+        )
     if best is fastest:
         if best["summary"]["severe_miles"] == 0 and best["summary"]["high_miles"] == 0:
             return f"{best['name']} is both the fastest and the calmest route: no High or Severe weather expected."
@@ -110,19 +120,28 @@ def _recommendation(routes, best):
     h, m = divmod(extra_min, 60)
     cost = f"{h} h {m} min" if h else f"{m} min"
     if saved > 0:
-        return f"{best['name']} costs {cost} more than {fastest['name']} but avoids {saved:.0f} miles of Severe weather."
+        return (
+            f"{best['name']} costs {cost} more than {fastest['name']} but avoids {saved:.0f} miles of Severe weather."  # noqa: E501
+        )
     if best["summary"]["high_miles"] < fastest["summary"]["high_miles"]:
         return f"{best['name']} costs {cost} more than {fastest['name']} but has fewer High-risk miles."
     return f"{best['name']} costs {cost} more than {fastest['name']} but has lower overall weather risk."
 
 
 def plan_trip(origin_text, dest_text, departure, weight_lb, interval_mi, now=None):
+    """Plan a trip. A naive `departure` means local clock time at the origin (what a driver types)."""
     now = now or datetime.now(timezone.utc)
-    validate(departure, weight_lb, interval_mi, now)
+    validate_inputs(weight_lb, interval_mi)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         origin, dest = pool.map(geocode.geocode, (origin_text, dest_text))
-    raw_routes = osrm.fetch_routes(origin, dest)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        routes_job = pool.submit(osrm.fetch_routes, origin, dest)
+        tz_name = geocode.timezone_at(origin["lat"], origin["lon"])
+        origin_tz = ZoneInfo(tz_name)
+        departure = departure.replace(tzinfo=origin_tz) if departure.tzinfo is None else departure.astimezone(origin_tz)
+        validate_departure(departure, now)
+        raw_routes = routes_job.result()
 
     for route in raw_routes:
         route["checkpoints"] = build_checkpoints(route, interval_mi, departure)
@@ -166,7 +185,7 @@ def plan_trip(origin_text, dest_text, departure, weight_lb, interval_mi, now=Non
                 "duration_s": round(total_s),
                 "arrival": (departure + timedelta(seconds=total_s)).isoformat(),
                 "stops": build_stops(route, departure),
-                "geometry": [[round(lat, 5), round(lon, 5)] for lat, lon in downsample(route["points"], GEOMETRY_POINTS)],
+                "geometry": [[round(lat, 5), round(lon, 5)] for lat, lon in downsample(route["points"], MAP_POINTS)],
                 "checkpoints": checkpoints,
                 "summary": _summarize(checkpoints),
                 "blocked": any(c["level"] == risk.NO_TRAVEL for c in checkpoints),
@@ -180,10 +199,12 @@ def plan_trip(origin_text, dest_text, departure, weight_lb, interval_mi, now=Non
         "origin": origin,
         "destination": dest,
         "departure": departure.isoformat(),
+        "timezone": tz_name,
         "weight_lb": weight_lb,
         "interval_mi": interval_mi,
         "levels": risk.LEVELS,
         "routes": routes,
+        "weather_sources": sorted({f.source for f in forecasts.values()}),
         "recommended_id": best["id"],
         "recommendation": _recommendation(routes, best),
     }

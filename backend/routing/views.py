@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 
 import requests
 from django.http import JsonResponse
@@ -39,14 +39,15 @@ def plan(request):
         interval_mi = int(body.get("interval_mi", 25))
         departure = datetime.fromisoformat(str(body["departure"]).replace("Z", "+00:00"))
     except (KeyError, ValueError, TypeError):
-        return _error("Send origin, destination, departure (ISO time), weight_lb and optionally interval_mi.")
+        return _error(
+            "Send origin, destination, departure (ISO time; without an offset it is local time at the origin), "
+            "weight_lb and optionally interval_mi."
+        )
     if not origin or not dest:
         return _error("Origin and destination are required.")
-    if departure.tzinfo is None:
-        departure = departure.replace(tzinfo=timezone.utc)
 
     try:
-        result = planner.plan_trip(origin, dest, departure.astimezone(timezone.utc), weight_lb, interval_mi)
+        result = planner.plan_trip(origin, dest, departure, weight_lb, interval_mi)
     except (planner.PlanError, geocode.GeocodeError) as exc:
         return _error(str(exc))
     except (osrm.RoutingError, weather.WeatherError) as exc:

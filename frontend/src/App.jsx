@@ -50,7 +50,7 @@ export default function App() {
         {plan && !loading && (
           <>
             <RouteCards plan={plan} selectedId={selectedId} onSelect={setSelectedId} />
-            {selected && <CheckpointTable route={selected} interval={plan.interval_mi} />}
+            {selected && <CheckpointTable route={selected} interval={plan.interval_mi} timeZone={plan.timezone} />}
           </>
         )}
       </aside>
@@ -59,6 +59,7 @@ export default function App() {
         {plan && (
           <HeatControl
             departure={plan.departure}
+            timeZone={plan.timezone}
             hour={hour}
             onHour={setHour}
             visible={showHeat}
@@ -68,6 +69,11 @@ export default function App() {
           />
         )}
         {!plan && !loading && <div className="map-hint card">Enter a trip to see three routes and the weather along each.</div>}
+        {loading && (
+          <div className="map-loading" role="status">
+            <span className="spinner" /> Planning routes…
+          </div>
+        )}
       </main>
     </div>
   )

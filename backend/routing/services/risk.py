@@ -2,6 +2,7 @@
 
 Levels, lowest to highest: Low, Moderate, High, Severe, No Travel.
 """
+
 from dataclasses import dataclass, field
 
 LEVELS = ["Low", "Moderate", "High", "Severe", "No Travel"]
@@ -50,7 +51,8 @@ def assess(wind_mph, rain_in_hr, snow_in_hr, weight_lb):
         lvl = classify(kind, value)
         if lvl > LOW:
             name, unit = _LABELS[kind]
-            reasons.append(f"{name} {value:.2f} {unit}: {LEVELS[lvl]}" if kind != "wind" else f"{name} {value:.0f} {unit}: {LEVELS[lvl]}")
+            shown = f"{value:.0f}" if kind == "wind" else f"{value:.2f}"
+            reasons.append(f"{name} {shown} {unit}: {LEVELS[lvl]}")
         level = max(level, lvl)
 
     if 45 <= wind_mph < 55 and weight_lb > HEAVY_LOAD_LB:

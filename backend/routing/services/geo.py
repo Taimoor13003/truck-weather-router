@@ -1,4 +1,5 @@
 """Small geometry helpers for polylines expressed as (lat, lon) pairs."""
+
 from bisect import bisect_right
 from math import asin, cos, radians, sin, sqrt
 

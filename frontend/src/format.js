@@ -9,13 +9,24 @@ export function formatDuration(seconds) {
   return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`
 }
 
-const timeFormat = new Intl.DateTimeFormat(undefined, {
-  weekday: 'short',
-  hour: 'numeric',
-  minute: '2-digit',
-})
+const formatters = new Map()
 
-export const formatTime = (iso) => timeFormat.format(new Date(iso))
+/** "Tue 1:35 PM CST": times are shown in the origin's time zone so the whole trip reads on one clock. */
+export function formatTime(iso, timeZone) {
+  if (!formatters.has(timeZone)) {
+    formatters.set(
+      timeZone,
+      new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone }),
+    )
+  }
+  return formatters.get(timeZone).format(new Date(iso))
+}
+
+export function formatOffset(hours) {
+  const whole = Math.floor(hours)
+  const minutes = Math.round((hours - whole) * 60)
+  return minutes ? `+${whole} h ${minutes} min` : `+${whole} h`
+}
 
 export function addHours(iso, hours) {
   return new Date(new Date(iso).getTime() + hours * 3_600_000).toISOString()

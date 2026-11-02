@@ -1,4 +1,5 @@
 """Route alternatives from the public OSRM server (no API key, no routing engine of our own)."""
+
 import time
 from concurrent.futures import ThreadPoolExecutor
 from itertools import accumulate
