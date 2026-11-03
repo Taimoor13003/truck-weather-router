@@ -10,7 +10,7 @@ A React + Django app that helps a truck driver pick the safest route. Enter an o
 
 ## How it works
 
-1. **Geocoding**: Nominatim (OpenStreetMap) turns place names into coordinates. The origin's time zone is resolved offline, so the departure time the user types is local time at the origin and every time in the UI is shown on that clock (for example CST).
+1. **Geocoding**: Nominatim (OpenStreetMap) turns place names into coordinates. If Nominatim refuses or is down (it rate-limits shared cloud servers), a built-in list of about 7,500 US cities (GeoNames, 5,000+ people) is used instead. The origin's time zone is resolved offline, so the departure time the user types is local time at the origin and every time in the UI is shown on that clock (for example CST).
 2. **Routing**: the public OSRM server returns driving alternatives. If it returns fewer than three distinct roads, the backend asks for more by routing through via-points offset sideways from the midpoint (all requested in parallel), then drops anything that is the same road (average distance under 2 miles) or more than 60% slower than the fastest route.
 3. **Truck timing**: OSRM returns a travel time for every road segment. Each segment is slowed to at most 65 mph (the usual US truck limit), so ETAs follow the real road: slow through cities, fast on interstates. On top of that the driver's US Hours-of-Service rules are applied: a 30-minute break after 8 hours of driving and a 10-hour rest after 11 hours. Those stops push every later ETA back and are shown on the map (B and R markers) and in the route details.
 4. **Checkpoints**: points are placed every 10, 25 or 50 miles (user's choice) along each route, plus start and end. Each gets its ETA from step 3.

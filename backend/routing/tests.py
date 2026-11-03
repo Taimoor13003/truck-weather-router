@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import requests
 from django.test import SimpleTestCase
 
 from .services import geocode, hos, osrm, planner, risk, weather
@@ -286,6 +287,18 @@ class GeocodeTests(SimpleTestCase):
             "address": {"city": "Dallas", "state": "Texas"},
         }
         self.assertEqual(geocode._label(item), "Dallas, Texas")
+
+    def test_offline_search_matches_city_and_state(self):
+        self.assertEqual(geocode.search_offline("Fargo, ND", 1)[0]["label"], "Fargo, North Dakota")
+        self.assertEqual(geocode.search_offline("des moines, iowa", 1)[0]["label"], "Des Moines, Iowa")
+        self.assertEqual(geocode.search_offline("Des Moines", 1)[0]["label"], "Des Moines, Iowa")  # largest first
+        self.assertEqual(geocode.search_offline("Nowhereville, ND"), [])
+
+    def test_search_falls_back_offline_when_nominatim_fails(self):
+        with patch.object(geocode.requests, "get", side_effect=requests.ConnectionError("blocked")):
+            result = geocode.search("Fargo, ND", 1)
+        self.assertEqual(result[0]["label"], "Fargo, North Dakota")
+        self.assertAlmostEqual(result[0]["lat"], 46.877, places=2)
 
     def test_timezone_is_resolved_offline(self):
         self.assertEqual(geocode.timezone_at(44.98, -93.27), "America/Chicago")
