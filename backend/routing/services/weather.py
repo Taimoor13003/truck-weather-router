@@ -5,6 +5,7 @@ Fallback: MET Norway (free, no key, one location per request), used for any loca
 cannot serve, so the app keeps working when the primary service is overloaded.
 """
 
+import logging
 import time
 from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
@@ -26,6 +27,7 @@ MM_TO_IN = 1 / 25.4
 SNOW_TO_LIQUID = 10  # common 10:1 ratio, used only when the source gives no separate snowfall
 _RETRYABLE = (429, 500, 502, 503, 504)
 _cache = {}
+log = logging.getLogger(__name__)
 
 
 class WeatherError(RuntimeError):
@@ -58,10 +60,13 @@ def _get(url, params, headers=None, attempts=2):
     for attempt in range(attempts):
         try:
             resp = requests.get(url, params=params, headers=headers, timeout=30)
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            log.warning("Weather request to %s failed: %s", url, exc)
             resp = None
         if resp is not None and resp.status_code == 200:
             return resp.json()
+        if resp is not None:
+            log.warning("Weather request to %s returned %s: %s", url, resp.status_code, resp.text[:300])
         if resp is not None and resp.status_code not in _RETRYABLE:
             return None
         if attempt + 1 < attempts:
