@@ -15,8 +15,10 @@ MIDDLEWARE = [
 ]
 
 # In production Django also serves the built React app (frontend/dist), so one service hosts everything.
-WHITENOISE_ROOT = BASE_DIR.parent / "frontend" / "dist"
-WHITENOISE_INDEX_FILE = True
+_DIST = BASE_DIR.parent / "frontend" / "dist"
+if _DIST.is_dir():  # absent on Vercel, where the CDN serves the React app
+    WHITENOISE_ROOT = _DIST
+    WHITENOISE_INDEX_FILE = True
 STATIC_URL = "/static/"
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"

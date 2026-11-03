@@ -81,7 +81,9 @@ Errors return `{"error": "..."}` with status 400 (bad input) or 502 (an upstream
 
 ## Deploy
 
-`render.yaml` is a Render blueprint. It builds the React app, installs the Django app and serves both from one gunicorn service (WhiteNoise serves `frontend/dist`).
+**Vercel (live demo).** `vercel.json` builds the React app and serves it from Vercel's CDN. `api/index.py` runs the Django app as a serverless function, and `/api/*` is routed to it.
+
+**Render (alternative).** `render.yaml` is a Render blueprint. It builds the React app, installs the Django app and serves both from one gunicorn service (WhiteNoise serves `frontend/dist`).
 
 ## Assumptions and limits
 
