@@ -2,6 +2,8 @@
 
 A React + Django app that helps a truck driver pick the safest route. Enter an origin, destination, departure time and load weight. The app returns three route options, checks the forecast along each one **at the time the truck will actually be there**, scores the risk with the brief's rules, and recommends a route with a one-line reason. A heatmap with a 0 to 48 hour slider shows how conditions along the corridor evolve.
 
+**Live demo: https://truck-weather-router.onrender.com** (free hosting: the server sleeps when idle, so the first load can take up to a minute)
+
 ![Three routes from Minneapolis to Fargo with checkpoints, risk bars and the weather heatmap](docs/screenshot-plan.png)
 
 ![Los Angeles to Chicago: required driver breaks (B) and rests (R) push later ETAs back](docs/screenshot-long-trip.png)
@@ -81,9 +83,9 @@ Errors return `{"error": "..."}` with status 400 (bad input) or 502 (an upstream
 
 ## Deploy
 
-**Vercel (live demo).** `vercel.json` builds the React app and serves it from Vercel's CDN. `api/index.py` runs the Django app as a serverless function, and `/api/*` is routed to it.
+**Vercel (alternative).** `vercel.json` builds the React app and serves it from Vercel's CDN. `api/index.py` runs the Django app as a serverless function, and `/api/*` is routed to it.
 
-**Render (alternative).** `render.yaml` is a Render blueprint. It builds the React app, installs the Django app and serves both from one gunicorn service (WhiteNoise serves `frontend/dist`).
+**Render (live demo).** `render.yaml` is a Render blueprint. It builds the React app, installs the Django app and serves both from one gunicorn service (WhiteNoise serves `frontend/dist`).
 
 ## Assumptions and limits
 
